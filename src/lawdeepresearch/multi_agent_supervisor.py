@@ -277,6 +277,7 @@ if __name__ == "__main__":
 
 
     from langchain_core.messages import HumanMessage
+    from .tools.utils import format_messages
 
     # Example brief
     research_brief = """As the lessee, 성춘향, I need a comprehensive legal risk analysis of 
@@ -308,7 +309,7 @@ if __name__ == "__main__":
             "research_brief": research_brief,
             "supervisor_messages": [HumanMessage(content=research_brief)]
         })
-        print(result)
+        format_messages(result['supervisor_messages']) 
 
     # 3. asyncio.run()으로 '암실' 전체 작업을 실행합니다.
     asyncio.run(main())
