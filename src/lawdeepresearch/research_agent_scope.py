@@ -207,29 +207,6 @@ workflow.add_node("clarify_with_user", clarify_with_user)
 workflow.add_node("process_documents", process_documents)
 workflow.add_node("plan_legal_review", plan_legal_review)
 
-
-# workflow.add_conditional_edges(
-#     "clarify_with_user",
-#     # lambda 함수의 입력값(cmd)은 clarify_with_user가 반환한 Command 객체입니다.
-#     # cmd.goto 속성("process_documents" 또는 "__end__")에 따라 경로를 결정합니다.
-#     lambda cmd: cmd.goto,
-#     {
-#         "process_documents": "process_documents",
-#         "__end__": END,
-#     }
-# )
-
-# 각 단계(노드)를 어떻게 연결할지 정의합니다.
-# workflow.add_conditional_edges(
-#     "clarify_with_user",
-#     # lambda x: x, # clarify_with_user 함수가 반환하는 문자열 값("process_documents" 또는 END)에 따라 분기
-#     lambda state: state["messages"][-1].content, # 가장 최근 메시지 내용에 따라 분기할 경우 (예시)
-#     {
-#         # 키(key): 분기 조건, 값(value): 이동할 노드
-#         "process_documents": "process_documents",
-#         "__end__": END,
-#     }
-# )
 workflow.add_edge(START, "clarify_with_user")
 workflow.add_edge("process_documents", "plan_legal_review")
 workflow.add_edge("plan_legal_review", END)
