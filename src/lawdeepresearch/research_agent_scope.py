@@ -24,7 +24,7 @@ from langchain_core.messages import HumanMessage, AIMessage, get_buffer_string
 from langgraph.graph import StateGraph, START, END
 from langgraph.types import Command
 
-from prompts import clarify_user_instruction, plan_legal_review_prompt
+from lawdeepresearch.prompts import clarify_user_instruction, plan_legal_review_prompt
 
 # 우리 프로젝트에 맞게 수정한 State와 스키마를 가져옵니다.
 # (프로젝트 이름은 'lawdeepresearch'로 가정)
