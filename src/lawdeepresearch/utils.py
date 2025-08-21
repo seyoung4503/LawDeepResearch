@@ -15,10 +15,9 @@ from lawdeepresearch.state_research import Summary
 from lawdeepresearch.prompts import summarize_webpage_prompt
 
 # ===== UTILITY FUNCTIONS =====
-
 def get_today_str() -> str:
-    """Get current date in a human-readable format."""
-    return datetime.now().strftime("%a %b %-d, %Y")
+    """Get current date in a human-readable format. / 현재 날짜를 사람이 읽기 쉬운 형태로 반환합니다."""
+    return datetime.now().strftime("%a %b %#d, %Y") # 윈도우 
 
 def get_current_dir() -> Path:
     """Get the current directory of the module.

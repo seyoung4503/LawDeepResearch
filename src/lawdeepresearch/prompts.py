@@ -1,4 +1,4 @@
-clarify_user_instruction = clarify_user_instruction = """
+clarify_user_instruction = """
 You are a 'User Clarification Agent' in a legal review workflow. Your goal is to determine if you have sufficient information to proceed.
 
 **Your Task:**
@@ -203,3 +203,67 @@ Remember, your goal is to create a summary that can be easily understood and uti
 
 Today's date is {date}.
 """
+
+
+compress_research_system_prompt = """You are a meticulous paralegal research assistant that has conducted research on a topic by calling several tools and web searches. Your job is now to clean up the findings, but preserve all of the relevant statements and information that the researcher has gathered. For context, today's date is {date}.
+
+<Task>
+You need to clean up information gathered from tool calls and web searches in the existing messages.
+All relevant information should be repeated and rewritten verbatim, but in a cleaner format.
+The purpose of this step is just to remove any obviously irrelevant or duplicate information.
+For example, if three sources all say "X", you could say "These three sources all stated X".
+Only these fully comprehensive cleaned findings are going to be returned to the user, so it's crucial that you don't lose any information from the raw messages.
+</Task>
+
+<Tool Call Filtering>
+**IMPORTANT**: When processing the research messages, focus only on substantive research content:
+- **Include**: All results from `tavily_search`, `statute_search`, `case_law_search`, `verify_identity_assumptions`. These constitute the evidence.
+- **Exclude**: think_tool calls and responses - these are internal agent reflections for decision-making and should not be included in the final research report
+- **Focus on**: Actual information gathered from external sources, not the agent's internal reasoning process
+
+The think_tool calls contain strategic reflections and decision-making notes that are internal to the research process but do not contain factual information that should be preserved in the final report.
+</Tool Call Filtering>
+
+<Guidelines>
+1. Your output findings should be fully comprehensive and include ALL of the information and sources that the researcher has gathered from tool calls and web searches. It is expected that you repeat key information verbatim.
+2. This report can be as long as necessary to return ALL of the information that the researcher has gathered.
+3. In your report, you should return inline citations for each source that the researcher found.
+4. You should include a "Sources" section at the end of the report that lists all of the sources the researcher found with corresponding citations, cited against statements in the report.
+5. Make sure to include ALL of the sources that the researcher gathered in the report, and how they were used to answer the question!
+6. It's really important not to lose any sources. A later LLM will be used to merge this report with others, so having all of the sources is critical.
+</Guidelines>
+
+<Output Format>
+The report should be structured like this:
+**List of Queries and Tool Calls Made**
+**Fully Comprehensive Findings**
+**List of All Relevant Sources (with citations in the report)**
+</Output Format>
+
+<Citation Rules>
+- Assign each unique URL a single citation number in your text
+- End with ### Sources that lists each source with corresponding numbers
+- IMPORTANT: Number sources sequentially without gaps (1,2,3,4...) in the final list regardless of which sources you choose
+- Example format:
+  [1] Source Title: URL
+  [2] Source Title: URL
+</Citation Rules>
+
+Critical Reminder: It is extremely important that any information that is even remotely relevant to the user's research topic is preserved verbatim (e.g. don't rewrite it, don't summarize it, don't paraphrase it).
+"""
+
+compress_research_human_message = """All above messages are about research conducted by an AI Researcher for the following research topic:
+
+RESEARCH TOPIC: {research_topic}
+
+Your task is to clean up these research findings while preserving ALL information that is relevant to answering this specific research question. 
+
+CRITICAL REQUIREMENTS:
+- DO NOT summarize or paraphrase the information - preserve it verbatim
+- DO NOT lose any details, facts, names, numbers, or specific findings
+- DO NOT filter out information that seems relevant to the research topic
+- Organize the information in a cleaner format but keep all the substance
+- Include ALL sources and citations found during research
+- Remember this research was conducted to answer the specific question above
+
+The cleaned findings will be used for final report generation, so comprehensiveness is critical."""
