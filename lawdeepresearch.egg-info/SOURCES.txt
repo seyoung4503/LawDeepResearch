@@ -5,5 +5,12 @@ lawdeepresearch.egg-info/SOURCES.txt
 lawdeepresearch.egg-info/dependency_links.txt
 lawdeepresearch.egg-info/requires.txt
 lawdeepresearch.egg-info/top_level.txt
+src/lawdeepresearch/multi_agent_supervisor.py
 src/lawdeepresearch/prompts.py
+src/lawdeepresearch/research_agent.py
+src/lawdeepresearch/research_agent_full.py
+src/lawdeepresearch/research_agent_scope.py
+src/lawdeepresearch/state_multi_agent_supervisor.py
+src/lawdeepresearch/state_research.py
 src/lawdeepresearch/state_scope.py
+src/lawdeepresearch/utils.py
