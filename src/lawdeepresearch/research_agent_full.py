@@ -141,8 +141,8 @@ if __name__ == "__main__":
                     )
                 ],
                 "document_paths": [
-                    "mock/path/to/my_contract.pdf",
-                    "mock/path/to/building_registration.pdf",
+                    "주택임대차표준계약서_test3.pdf",
+                    "등기부등본_clean.png",
                 ],
             },
             config=thread3,

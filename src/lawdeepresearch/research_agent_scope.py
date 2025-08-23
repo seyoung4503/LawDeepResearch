@@ -12,6 +12,8 @@ This module implements the scoping phase of the legal review workflow, where we:
 3. 대화 내용과 분석된 데이터를 바탕으로 상세하고 구조화된 검토 브리핑을 생성합니다.
 """
 
+import json
+import requests
 from datetime import datetime
 from typing import Literal
 from dotenv import load_dotenv
@@ -63,6 +65,8 @@ model = ChatGoogleGenerativeAI(
     temperature=0,
     convert_system_message_to_human=True,
 )
+
+upstage_api_key = os.getenv("UPSTAGE_API_KEY")
 
 # ===== 워크플로우 노드(NODES) =====
 
@@ -160,45 +164,165 @@ def process_documents(state: AgentState) -> dict:
 
     all_parsed_data = []
     print("\n--- 문서 처리 시작 ---")
+
+    document_analysis_prompt_template = """
+
+    You are a highly skilled legal expert AI specializing in the analysis of South Korean real estate documents.
+    Your mission is to analyze the HTML content of a document extracted via OCR, summarize its key information, and, most importantly, clearly identify potential risks or points of caution for the user.
+
+    Review the [Document HTML Content] below and perform the following tasks in order:
+    1. Identify Document Type: Determine if the document is a '주택임대차계약서' (Housing Lease Agreement) or a '등기부등본' (Real Estate Register).
+
+    2. Extract and Summarize Key Information: Based on the identified document type, extract and summarize all relevant information precisely as shown in the [Output Format] examples below. The final output must be a single JSON object.
+    
+    3. Analyze Risk Factors (for Lease Agreements only): If the document is a '주택임대차계약서', analyze its contents for any unusual clauses, provisions that could be disadvantageous to the tenant, or obvious errors (e.g., mismatched amounts). Describe these findings clearly in the 주의사항 (warnings) field. If no risks are found, return an empty list [].
+
+    [Document HTML Content]
+    {html_content}
+
+    [Output Format]
+    You must strictly adhere to the JSON structure defined below. Return only the raw JSON object without any markdown formatting (like ```json ... ```).
+
+    **'주택 임대차 계약서'인 경우:**
+    ```json
+    {{
+    "document_type": "주택 임대차 계약서",
+    "summary": {{
+        "기본 정보": {{
+        "임대인": "추출된 임대인 이름",
+        "임차인": "추출된 임차인 이름",
+        "부동산 주소": "추출된 전체 주소",
+        "임차할 부분": "추출된 임차 범위"
+        }},
+        "보증금 및 계약 기간": {{
+        "총 보증금": "추출된 총 보증금 (숫자와 단위 포함)",
+        "계약금": "추출된 계약금",
+        "중도금": "추출된 중도금 (지급일 포함)",
+        "잔금": "추출된 잔금 (지급일 포함)",
+        "계약 기간": "YYYY-MM-DD ~ YYYY-MM-DD (총 O년) 형식",
+        "주의사항": [
+            "분석된 위험 요소 또는 이례적 조항에 대한 설명 1",
+            "분석된 위험 요소 또는 이례적 조항에 대한 설명 2"
+        ]
+        }},
+        "주요 특약사항": [
+        {{
+            "조항": "특약사항 제목 요약",
+            "내용": "특약사항 전체 내용"
+        }}
+        ],
+        "기타 확인사항": {{
+        "집주인 권리관계": "미납 세금 및 선순위 권리자 유무",
+        "중개보수": "추출된 중개보수 정보",
+        "원상복구의무 범위": "추출된 원상복구 관련 내용"
+        }}
+    }}
+    }}
+
+    **'등기부등본'인 경우:**
+    {{
+    "document_type": "등기부등본",
+    "summary": {{
+        "기본 정보": {{
+        "소재지번": "추출된 주소",
+        "부동산 종류": "예: 토지, 건물, 집합건물"
+        }},
+        "소유권 현황 (갑구)": {{
+        "현재 소유자": {{
+            "성명": "추출된 현재 소유자 이름",
+            "주소": "추출된 소유자 주소",
+            "등기원인": "예: 매매, 상속 등"
+        }},
+        "주의사항(압류/가압류 등)": [
+            "갑구에서 발견된 소유권 제한 관련 내용 요약 1",
+            "갑구에서 발견된 소유권 제한 관련 내용 요약 2"
+        ]
+        }},
+        "소유권 외 권리 현황 (을구)": {{
+        "근저당권 및 기타 권리": [
+            {{
+            "권리 종류": "예: 근저당권",
+            "채권최고액": "추출된 금액",
+            "채권자": "추출된 채권자(은행 등)",
+            "설정일자": "YYYY-MM-DD"
+            }}
+        ],
+        "주의사항": "을구가 깨끗한지, 아니면 과도한 대출 또는 빛이 있는지에 대한 종합적인 분석 의견"
+        }}
+    }}
+    }}
+    """
+
     for path in document_paths:
         print(f"문서 처리 중: '{path}'...")
-        # 파일 경로에 따라 동적으로 가상 데이터 생성
-        if "contract" in path.lower():
-            parsed_json = {
-                "file_name": os.path.basename(path),
-                "document_type": "주택 임대차 계약서",
-                "content": {
-                    "임대인": "홍길동",
-                    "임차인": "성춘향",
-                    "주소": "서울특별시 강남구 테헤란로 427",
-                    "보증금": "500,000,000원",
-                    "계약 기간": "2025-09-01 ~ 2027-08-31",
-                    "특약사항": "임차인은 반려동물을 키울 수 없다.",
-                },
-            }
-        elif "registration" in path.lower():
-            parsed_json = {
-                "file_name": os.path.basename(path),
-                "document_type": "등기부등본",
-                "content": {
-                    "소유자": "홍길동",
-                    "주소": "서울특별시 강남구 테헤란로 427",
-                    "채권최고액": "300,000,000원",
-                    "설정일자": "2024-01-15",
-                },
-            }
-        else:
-            parsed_json = {
-                "file_name": os.path.basename(path),
-                "document_type": "기타 문서",
-                "content": {},
-            }
 
-        all_parsed_data.append(parsed_json)
+        filename = path
+
+        url = "https://api.upstage.ai/v1/document-digitization"
+        headers = {"Authorization": f"Bearer {upstage_api_key}"}
+        files = {"document": open(filename, "rb")}
+        data = {"ocr": "force", "model": "document-parse"}
+        response = requests.post(url, headers=headers, files=files, data=data)
+        upstage_result = response.json()
+        html_from_api = upstage_result.get("content", {}).get("html", "")
+
+        model_output = model.invoke(
+            [
+                HumanMessage(
+                    content=document_analysis_prompt_template.format(
+                        html_content=html_from_api
+                    )
+                )
+            ]
+        )
+
+        model_output_text = model_output.content
+        json_str = model_output_text.strip().replace("```json", "").replace("```", "")
+
+        model_output_text
+        parsed_json = json.loads(json_str)
+
+        # 최종 결과물에 파일 이름 추가
+        final_output = {"file_name": path, **parsed_json}
+
+        print(f"'{path}' 처리 완료.")
+        all_parsed_data.append(final_output)
+        print(final_output)
 
     print("--- 모든 문서 처리 완료 ---\n")
     return {"parsed_data": all_parsed_data}
 
+
+# if "contract" in path.lower():
+#     parsed_json = {
+#         "file_name": os.path.basename(path),
+#         "document_type": "주택 임대차 계약서",
+#         "content": {
+#             "임대인": "홍길동",
+#             "임차인": "성춘향",
+#             "주소": "서울특별시 강남구 테헤란로 427",
+#             "보증금": "500,000,000원",
+#             "계약 기간": "2025-09-01 ~ 2027-08-31",
+#             "특약사항": "임차인은 반려동물을 키울 수 없다.",
+#         },
+#     }
+# elif "registration" in path.lower():
+#     parsed_json = {
+#         "file_name": os.path.basename(path),
+#         "document_type": "등기부등본",
+#         "content": {
+#             "소유자": "홍길동",
+#             "주소": "서울특별시 강남구 테헤란로 427",
+#             "채권최고액": "300,000,000원",
+#             "설정일자": "2024-01-15",
+#         },
+#     }
+# else:
+#     parsed_json = {
+#         "file_name": os.path.basename(path),
+#         "document_type": "기타 문서",
+#         "content": {},
+#     }
 
 # 워크플로우 파일의 write_research_brief 함수 수정
 
@@ -256,7 +380,6 @@ if __name__ == "__main__":
     print("✅ Graph saved to 'workflow_graph.png'. You can now open this file.")
 
     from langchain_core.messages import HumanMessage
-    import json
 
     # print("\n--- 실행 1: 정보 부족 (역할, 문서 모두 없음) ---")
     # thread1 = {"configurable": {"thread_id": "thread-1"}}
@@ -280,8 +403,8 @@ if __name__ == "__main__":
                 )
             ],
             "document_paths": [
-                "mock/path/to/my_contract.pdf",
-                "mock/path/to/building_registration.pdf",
+                "주택임대차표준계약서_test3.pdf",
+                "등기부등본_clean.png",
             ],
         },
         config=thread3,
